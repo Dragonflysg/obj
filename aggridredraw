@@ -1,0 +1,154 @@
+You need to add a method to destroy/clear the existing grid before initializing a new one. Here are the changes:
+
+
+class AGGridTableManager {
+    constructor(gridId, columnDefs, rowData) {
+        this.gridId = gridId;
+        this.columnDefs = columnDefs;
+        this.rowData = rowData;
+        this.gridApi = null;
+        this.gridColumnApi = null;
+        this.gridOptions = null;
+    }
+
+    initialize() {
+        // Destroy existing grid if it exists
+        this.destroy();
+
+        this.gridOptions = {
+            columnDefs: this.columnDefs,
+            rowData: this.rowData,
+            onGridReady: (params) => {
+                this.gridApi = params.api;
+                this.gridColumnApi = params.columnApi;
+            }
+        };
+
+        const gridDiv = document.querySelector(`#${this.gridId}`);
+        new agGrid.Grid(gridDiv, this.gridOptions);
+    }
+
+    destroy() {
+        if (this.gridApi) {
+            this.gridApi.destroy();
+            this.gridApi = null;
+            this.gridColumnApi = null;
+        }
+    }
+
+    updateData(newRowData) {
+        // Option 1: Update existing grid with new data
+        if (this.gridApi) {
+            this.gridApi.setGridOption('rowData', newRowData);
+        } else {
+            // If grid doesn't exist, initialize it
+            this.rowData = newRowData;
+            this.initialize();
+        }
+    }
+
+    addRow(newRow) {
+        this.gridApi.applyTransaction({ add: [newRow] });
+    }
+
+    updateRow(rowIndex, newData) {
+        const rowNode = this.gridApi.getDisplayedRowAtIndex(rowIndex);
+        rowNode.setData(newData);
+    }
+
+    deleteRow(rowIndex) {
+        const rowNode = this.gridApi.getDisplayedRowAtIndex(rowIndex);
+        this.gridApi.applyTransaction({ remove: [rowNode.data] });
+    }
+}
+
+
+
+Now you have two options for handling the dropdown change:
+Option 1: Update Data Without Re-initializing (Better Performance)
+
+// Initialize once on page load
+const table1 = new AGGridTableManager('table1', columnDefs1, initialData);
+table1.initialize();
+
+// When dropdown changes
+$('#yearDropdown').change(function() {
+    const selectedYear = $(this).val();
+    
+    // Fetch new data from API
+    $.ajax({
+        url: '/api/getData',
+        data: { year: selectedYear },
+        success: function(newData) {
+            // Just update the data, don't recreate the grid
+            table1.updateData(newData);
+        }
+    });
+});
+
+
+Option 2: Destroy and Recreate (If you need to change columns too)
+
+// Initialize once on page load
+let table1 = new AGGridTableManager('table1', columnDefs1, initialData);
+table1.initialize();
+
+// When dropdown changes
+$('#yearDropdown').change(function() {
+    const selectedYear = $(this).val();
+    
+    // Fetch new data from API
+    $.ajax({
+        url: '/api/getData',
+        data: { year: selectedYear },
+        success: function(newData) {
+            // Destroy and recreate with new data
+            table1.destroy();
+            table1 = new AGGridTableManager('table1', columnDefs1, newData);
+            table1.initialize();
+        }
+    });
+});
+
+
+Or, if you want to keep it simpler in your dropdown handler:
+class AGGridTableManager {
+    // ... previous code ...
+    
+    refreshWithNewData(newRowData, newColumnDefs = null) {
+        this.destroy();
+        this.rowData = newRowData;
+        if (newColumnDefs) {
+            this.columnDefs = newColumnDefs;
+        }
+        this.initialize();
+    }
+}
+
+// Usage:
+$('#yearDropdown').change(function() {
+    const selectedYear = $(this).val();
+    
+    $.ajax({
+        url: '/api/getData',
+        data: { year: selectedYear },
+        success: function(newData) {
+            table1.refreshWithNewData(newData);
+        }
+    });
+});
+
+
+I recommend Option 1 (updateData()) because:
+
+It's more efficient (doesn't destroy/recreate the entire grid)
+Maintains grid state (filters, sorts, column widths)
+Smoother user experience
+Less DOM manipulation
+
+Use Option 2 only if you need to change the column definitions along with the data.
+
+
+
+
+
