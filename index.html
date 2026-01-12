@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cascading Dropdown Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        select:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cascading Dropdown Example</h1>
+
+    <div class="form-group">
+        <label for="groupDropdown">Select Group:</label>
+        <select id="groupDropdown">
+            <option value="">Select an item</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="assigneeDropdown">Select Assignee:</label>
+        <select id="assigneeDropdown" disabled>
+            <option value="">Select an item</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <button id="getValuesBtn">Get Values</button>
+    </div>
+
+    <!-- Include jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Include Lodash -->
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+
+    <script>
+        let assigneesData = [];
+
+        $(document).ready(function() {
+            // Load the JSON file
+            $.ajax({
+                url: 'assignees.json',
+                dataType: 'json',
+                success: function(data) {
+                    assigneesData = data;
+                    populateGroupDropdown();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading JSON file:', error);
+                    alert('Failed to load assignees data. Make sure you are running this through a web server.');
+                }
+            });
+
+            // Event handler for group dropdown change
+            $('#groupDropdown').on('change', function() {
+                const selectedGroup = $(this).val();
+                populateAssigneeDropdown(selectedGroup);
+            });
+
+            // Event handler for button click
+            $('#getValuesBtn').on('click', function() {
+                const groupValue = $('#groupDropdown').val();
+                const assigneeValue = $('#assigneeDropdown').val();
+
+                console.log('Group Value:', groupValue);
+                console.log('Assignee Value:', assigneeValue);
+            });
+        });
+
+        function populateGroupDropdown() {
+            const $groupDropdown = $('#groupDropdown');
+
+            // Clear existing options except the default one
+            $groupDropdown.find('option:not(:first)').remove();
+
+            // Get unique group names using lodash
+            const groupNames = _.uniq(_.map(assigneesData, 'assignedgroupname'));
+
+            // Populate the dropdown
+            _.forEach(groupNames, function(groupName) {
+                $groupDropdown.append($('<option>', {
+                    value: groupName,
+                    text: groupName
+                }));
+            });
+        }
+
+        function populateAssigneeDropdown(groupName) {
+            const $assigneeDropdown = $('#assigneeDropdown');
+
+            // Clear existing options except the default one
+            $assigneeDropdown.find('option:not(:first)').remove();
+
+            if (!groupName) {
+                // If no group selected, disable and reset assignee dropdown
+                $assigneeDropdown.prop('disabled', true);
+                $assigneeDropdown.val('');
+                return;
+            }
+
+            // Find the group data using lodash
+            const groupData = _.find(assigneesData, { assignedgroupname: groupName });
+
+            if (groupData && groupData.assignees) {
+                // Enable the dropdown
+                $assigneeDropdown.prop('disabled', false);
+
+                // Populate with assignees
+                _.forEach(groupData.assignees, function(assignee) {
+                    $assigneeDropdown.append($('<option>', {
+                        value: assignee.userattuid,
+                        text: assignee.username
+                    }));
+                });
+            }
+        }
+    </script>
+</body>
+</html>
